@@ -1602,12 +1602,12 @@ func flattenOvirtVMDiskAttachments(configured []*ovirtsdk4.DiskAttachment, meta 
 			}
 			sId := disk.MustStorageDomains().Slice()[0].MustId()
 			attrs["storage_domain"] = conn.SystemService().
-					StorageDomainsService().
-					StorageDomainService(sId).
-					Get().
-					MustSend().
-					MustStorageDomain().
-					MustName()
+				StorageDomainsService().
+				StorageDomainService(sId).
+				Get().
+				MustSend().
+				MustStorageDomain().
+				MustName()
 		}
 		diskAttachments[i] = attrs
 	}
@@ -1735,6 +1735,7 @@ func addVmToAffinityGroups(conn *ovirtsdk4.Connection, vm *ovirtsdk4.Vm, cID str
 		}
 	}
 	return nil
+}
 
 func suppressMissingOptionalConfigurationBlock(k, old, new string, d *schema.ResourceData) bool {
 	return old == "1" && new == "0"
