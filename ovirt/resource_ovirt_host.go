@@ -52,15 +52,27 @@ func resourceOvirtHost() *schema.Resource {
 			},
 			"root_password": {
 				Type:         schema.TypeString,
-				Required:     true,
+				Optional:     true,
 				ForceNew:     false,
 				ValidateFunc: validation.NoZeroValues,
 				Sensitive:    true,
+			},
+			"ssh_key_auth": {
+				Type:     schema.TypeBool,
+				Default:  false,
+				Optional: true,
+				ForceNew: false,
 			},
 			"cluster_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+			},
+			"override_iptables": {
+				Type:     schema.TypeBool,
+				Default:  true,
+				Optional: true,
+				ForceNew: false,
 			},
 		},
 	}
@@ -68,11 +80,30 @@ func resourceOvirtHost() *schema.Resource {
 
 func resourceOvirtHostCreate(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*ovirtsdk4.Connection)
+
+	rootPassword, rootPasswordOk := d.GetOk("root_password")
+	sshKeyAuth := d.Get("ssh_key_auth").(bool)
+
+	if rootPasswordOk == sshKeyAuth {
+		return fmt.Errorf("only one of root_password and ssh_key_auth must be specified")
+	}
+
 	hostBuilder := ovirtsdk4.NewHostBuilder().
 		Name(d.Get("name").(string)).
 		Address(d.Get("address").(string)).
-		RootPassword(d.Get("root_password").(string)).
-		Description(d.Get("description").(string))
+		Description(d.Get("description").(string)).
+		OverrideIptables(d.Get("override_iptables").(bool))
+
+	if rootPasswordOk {
+		hostBuilder.RootPassword(rootPassword.(string))
+	}
+
+	if sshKeyAuth {
+		sshBuilder := ovirtsdk4.NewSshBuilder().
+			AuthenticationMethod(ovirtsdk4.SSHAUTHENTICATIONMETHOD_PUBLICKEY)
+		hostBuilder.SshBuilder(sshBuilder)
+	}
+
 	if clusterID, ok := d.GetOk("cluster_id"); ok {
 		hostBuilder.Cluster(ovirtsdk4.NewClusterBuilder().
 			Id(clusterID.(string)).
@@ -130,14 +161,22 @@ func resourceOvirtHostRead(d *schema.ResourceData, meta interface{}) error {
 	host := getResp.MustHost()
 	d.Set("name", host.MustName())
 	d.Set("address", host.MustAddress())
-	// if rootPassword, ok := host.RootPassword(); ok {
-	// 	d.Set("root_password", rootPassword)
-	// }
+	// rootPassword not returned
+	// overrideIptables not returned
 	if cluster, ok := host.Cluster(); ok {
 		d.Set("cluster_id", cluster.MustId())
 	}
 	if desc, ok := host.Description(); ok {
 		d.Set("description", desc)
+	}
+	if ssh, ok := host.Ssh(); ok {
+		if auth, ok := ssh.AuthenticationMethod(); ok {
+			if auth == ovirtsdk4.SSHAUTHENTICATIONMETHOD_PUBLICKEY {
+				d.Set("ssh_key_auth", true)
+			} else {
+				d.Set("ssh_key_auth", false)
+			}
+		}
 	}
 
 	return nil
@@ -163,6 +202,21 @@ func resourceOvirtHostUpdate(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("root_password") {
 		paramBuilder.RootPassword(d.Get("root_password").(string))
 		attributeUpdate = true
+	}
+
+	if d.HasChange("override_iptables") {
+		paramBuilder.OverrideIptables(d.Get("override_iptables").(bool))
+		attributeUpdate = true
+	}
+
+	if d.HasChange("ssh_key_auth") {
+		method := ovirtsdk4.SSHAUTHENTICATIONMETHOD_PASSWORD
+		if d.Get("ssh_key_auth").(bool) {
+			method = ovirtsdk4.SSHAUTHENTICATIONMETHOD_PUBLICKEY
+		}
+		sshBuilder := ovirtsdk4.NewSshBuilder().
+			AuthenticationMethod(method)
+		paramBuilder.SshBuilder(sshBuilder)
 	}
 
 	if attributeUpdate {
