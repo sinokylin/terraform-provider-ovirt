@@ -115,6 +115,7 @@ func (c *providerContext) Provider() terraform.ResourceProvider {
 			"ovirt_hosts":          dataSourceOvirtHosts(),
 			"ovirt_nics":           dataSourceOvirtNics(),
 			"ovirt_templates":      dataSourceOvirtTemplates(),
+			"ovirt_affinity_group": dataSourceOvirtAffinityGroup(),
 		},
 	}
 }
