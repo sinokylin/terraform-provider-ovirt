@@ -1072,7 +1072,7 @@ func resourceOvirtVMRead(d *schema.ResourceData, meta interface{}) error {
 	conn := meta.(*ovirtsdk4.Connection)
 
 	getVmresp, err := conn.SystemService().VmsService().
-		VmService(d.Id()).Get().Send()
+		VmService(d.Id()).Get().Follow("nics").Send()
 	if err != nil {
 		if _, ok := err.(*ovirtsdk4.NotFoundError); ok {
 			d.SetId("")
@@ -1096,6 +1096,7 @@ func resourceOvirtVMRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("threads", vm.MustCpu().MustTopology().MustThreads())
 	d.Set("cluster_id", vm.MustCluster().MustId())
 	d.Set("maximum_memory", vm.MustMemoryPolicy().MustMax()/int64(math.Pow(2, 20)))
+	d.Set("high_availability", vm.MustHighAvailability().MustEnabled())
 
 	if it, ok := vm.InstanceType(); ok {
 		d.Set("instance_type_id", it.MustId())
@@ -1115,6 +1116,17 @@ func resourceOvirtVMRead(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		d.Set("boot_devices", os[0]["boot"].(map[string]interface{})["devices"])
+	}
+
+	if nics, ok := vm.Nics(); ok {
+		readNics := make([]map[string]interface{}, len(nics.Slice()))
+		for index, nic := range nics.Slice() {
+			n := make(map[string]interface{})
+			n["name"] = nic.MustName()
+			n["vnic_profile_id"] = nic.MustVnicProfile().MustId()
+			readNics[index] = n
+		}
+		d.Set("nics", readNics)
 	}
 
 	// If the virtual machine is cloned from a template or another virtual machine,
