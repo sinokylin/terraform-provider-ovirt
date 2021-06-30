@@ -169,8 +169,30 @@ func resourceOvirtVM(c *providerContext) *schema.Resource {
 							Optional: true,
 							ForceNew: true,
 						},
+						"interface": {
+							Type:     schema.TypeString,
+							Required: false,
+							Optional: true,
+							ForceNew: true,
+							ValidateFunc: validation.StringInSlice([]string{
+								string(ovirtsdk4.NICINTERFACE_E1000),
+								string(ovirtsdk4.NICINTERFACE_PCI_PASSTHROUGH),
+								string(ovirtsdk4.NICINTERFACE_RTL8139),
+								string(ovirtsdk4.NICINTERFACE_RTL8139_VIRTIO),
+								string(ovirtsdk4.NICINTERFACE_SPAPR_VLAN),
+								string(ovirtsdk4.NICINTERFACE_VIRTIO),
+							}, false),
+							Default: string(ovirtsdk4.NICINTERFACE_VIRTIO),
+						},
 					},
 				},
+			},
+			"remove_cloned_nics": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				ForceNew:    true,
+				Description: "Remove nics cloned from Template / snapshot when this VM is created. Default : false",
 			},
 			"boot_devices": {
 				Type:     schema.TypeList,
@@ -711,6 +733,45 @@ func (c *providerContext) resourceOvirtVMCreate(d *schema.ResourceData, meta int
 	}
 	log.Printf("[DEBUG] Newly created VM (%s) is ready (status is down)", d.Id())
 	vmService := conn.SystemService().VmsService().VmService(d.Id())
+
+	// Remove Cloned nics if requested
+	removeClonedNics := d.Get("remove_cloned_nics").(bool)
+	if removeClonedNics {
+		log.Printf("[DEBUG] Removing cloned nics from VM (%s)", d.Id())
+		resp, err := conn.
+			SystemService().
+			VmsService().
+			VmService(d.Id()).
+			NicsService().
+			List().
+			Send()
+
+		if err != nil {
+			log.Printf("[DEBUG] Error getting nics from VM (%s)", d.Id())
+			return err
+		}
+
+		vmNics, vmNicsOk := resp.Nics()
+
+		if vmNicsOk {
+			for _, nic := range vmNics.Slice() {
+				_, err := conn.
+					SystemService().
+					VmsService().
+					VmService(d.Id()).
+					NicsService().
+					NicService(nic.MustId()).
+					Remove().Send()
+
+				if err != nil {
+					log.Printf("[DEBUG] Error removing nic (%s) from VM (%s)", nic.MustId(), d.Id())
+					return err
+				}
+
+			}
+		}
+
+	}
 
 	// Do attach nics
 	nics, nicsOk := d.GetOk("nics")
@@ -1442,6 +1503,7 @@ func ovirtAttachNics(n []interface{}, vmID string, meta interface{}) error {
 			ovirtsdk4.NewNicBuilder().
 				Name(nic["name"].(string)).
 				Mac(mac).
+				Interface(ovirtsdk4.NicInterface(nic["interface"].(string))).
 				VnicProfile(
 					ovirtsdk4.NewVnicProfileBuilder().
 						Id(nic["vnic_profile_id"].(string)).
