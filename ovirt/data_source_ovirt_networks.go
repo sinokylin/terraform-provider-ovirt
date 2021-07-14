@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func networkSchema() *schema.Schema {
@@ -69,7 +70,7 @@ func dataSourceOvirtNetworks() *schema.Resource {
 }
 
 func dataSourceOvirtNetworksRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	networksReq := conn.SystemService().NetworksService().List()
 
 	search, searchOK := d.GetOk("search")

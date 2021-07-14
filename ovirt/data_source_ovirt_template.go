@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func dataSourceOvirtTemplates() *schema.Resource {
@@ -71,7 +72,7 @@ func dataSourceOvirtTemplates() *schema.Resource {
 }
 
 func dataSourceOvirtTemplatesRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	templatesReq := conn.SystemService().TemplatesService().List()
 

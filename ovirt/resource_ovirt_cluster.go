@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func resourceOvirtCluster() *schema.Resource {
@@ -112,7 +113,7 @@ func resourceOvirtCluster() *schema.Resource {
 }
 
 func resourceOvirtClusterCreate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	clusterBuilder := ovirtsdk4.NewClusterBuilder()
 
 	clusterBuilder.Name(d.Get("name").(string)).
@@ -182,7 +183,7 @@ func resourceOvirtClusterCreate(d *schema.ResourceData, meta interface{}) error 
 }
 
 func resourceOvirtClusterRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	getResp, err := conn.SystemService().
 		ClustersService().
 		ClusterService(d.Id()).
@@ -247,7 +248,7 @@ AfterNetwork:
 }
 
 func resourceOvirtClusterUpdate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	conn.SystemService()
 	paramCluster := ovirtsdk4.NewClusterBuilder()
 	attributeUpdate := false
@@ -352,7 +353,7 @@ func resourceOvirtClusterUpdate(d *schema.ResourceData, meta interface{}) error 
 }
 
 func resourceOvirtClusterDelete(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	_, err := conn.SystemService().ClustersService().
 		ClusterService(d.Id()).
 		Remove().

@@ -4,7 +4,7 @@
 // This software may be modified and distributed under the terms
 // of the BSD-2 license.  See the LICENSE file for details.
 
-package ovirt
+package ovirt_test
 
 import (
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func TestAccOvirtDataCenter_basic(t *testing.T) {
@@ -45,7 +46,7 @@ func TestAccOvirtDataCenter_basic(t *testing.T) {
 }
 
 func testAccCheckDataCenterDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*ovirtsdk4.Connection)
+	conn := testAccProvider.Meta().(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ovirt_datacenter" {
 			continue
@@ -76,7 +77,7 @@ func testAccCheckOvirtDataCenterExists(n string, v *ovirtsdk4.DataCenter) resour
 		if rs.Primary.ID == "" {
 			return fmt.Errorf("No DataCenter ID is set")
 		}
-		conn := testAccProvider.Meta().(*ovirtsdk4.Connection)
+		conn := testAccProvider.Meta().(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 		getResp, err := conn.SystemService().DataCentersService().
 			DataCenterService(rs.Primary.ID).
 			Get().

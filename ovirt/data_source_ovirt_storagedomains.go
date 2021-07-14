@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func dataSourceOvirtStorageDomains() *schema.Resource {
@@ -68,7 +69,7 @@ func dataSourceOvirtStorageDomains() *schema.Resource {
 	}
 }
 func dataSourceOvirtStorageDomainsRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	sdsReq := conn.SystemService().StorageDomainsService().List()
 

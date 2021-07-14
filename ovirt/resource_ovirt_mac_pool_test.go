@@ -4,7 +4,7 @@
 // This software may be modified and distributed under the terms
 // of the BSD-2 license.  See the LICENSE file for details.
 
-package ovirt
+package ovirt_test
 
 import (
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func TestAccOvirtMacPool_basic(t *testing.T) {
@@ -44,7 +45,7 @@ func TestAccOvirtMacPool_basic(t *testing.T) {
 }
 
 func testAccCheckMacPoolDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*ovirtsdk4.Connection)
+	conn := testAccProvider.Meta().(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ovirt_mac_pool" {
 			continue
@@ -75,7 +76,7 @@ func testAccCheckOvirtMacPoolExists(n string, v *ovirtsdk4.MacPool) resource.Tes
 		if rs.Primary.ID == "" {
 			return fmt.Errorf("No MacPool ID is set")
 		}
-		conn := testAccProvider.Meta().(*ovirtsdk4.Connection)
+		conn := testAccProvider.Meta().(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 		getResp, err := conn.SystemService().MacPoolsService().
 			MacPoolService(rs.Primary.ID).
 			Get().

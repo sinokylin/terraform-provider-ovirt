@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func resourceOvirtDisk() *schema.Resource {
@@ -89,7 +90,7 @@ func resourceOvirtDisk() *schema.Resource {
 }
 
 func resourceOvirtDiskCreate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	diskBuilder := ovirtsdk4.NewDiskBuilder().
 		Name(d.Get("name").(string)).
@@ -146,7 +147,7 @@ func resourceOvirtDiskCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceOvirtDiskUpdate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	vml, err := getAttachedVMsOfDisk(d.Id(), meta)
 	if err != nil {
@@ -222,7 +223,7 @@ func resourceOvirtDiskUpdate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceOvirtDiskRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	getDiskResp, err := conn.SystemService().DisksService().
 		DiskService(d.Id()).Get().Send()
 	if err != nil {
@@ -262,7 +263,7 @@ func resourceOvirtDiskRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceOvirtDiskDelete(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	diskService := conn.SystemService().
 		DisksService().
 		DiskService(d.Id())
@@ -282,7 +283,7 @@ func resourceOvirtDiskDelete(d *schema.ResourceData, meta interface{}) error {
 }
 
 func getAttachedVMsOfDisk(diskID string, meta interface{}) ([]*ovirtsdk4.Vm, error) {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	diskService := conn.SystemService().DisksService().DiskService(diskID)
 	getDiskResp, err := diskService.Get().

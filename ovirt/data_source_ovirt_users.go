@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
 )
@@ -68,7 +69,7 @@ func dataSourceOvirtUsers() *schema.Resource {
 }
 
 func dataSourceOvirtUsersRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	usersReq := conn.SystemService().UsersService().List()
 

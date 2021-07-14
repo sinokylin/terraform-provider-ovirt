@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func dataSourceOvirtDisks() *schema.Resource {
@@ -80,7 +81,7 @@ func dataSourceOvirtDisks() *schema.Resource {
 }
 
 func dataSourceOvirtDisksRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	disksReq := conn.SystemService().DisksService().List()
 

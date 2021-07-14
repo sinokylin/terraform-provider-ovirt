@@ -4,7 +4,7 @@
 // This software may be modified and distributed under the terms
 // of the BSD-2 license.  See the LICENSE file for details.
 
-package ovirt
+package ovirt_test
 
 import (
 	"fmt"
@@ -13,10 +13,29 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 func TestAccOvirtVnicProfile_basic(t *testing.T) {
 	var profile ovirtsdk4.VnicProfile
+
+	suite := getOvirtTestSuite(t)
+
+	network, err := suite.CreateTestNetwork()
+	if network != nil {
+		defer func() {
+			if err := suite.DeleteTestNetwork(network); err != nil {
+				t.Fatal(fmt.Errorf("failed to delete test network (%w)", err))
+			}
+		}()
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	networkID := network.MustId()
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:      func() { testAccPreCheck(t) },
 		Providers:     testAccProviders,
@@ -24,7 +43,14 @@ func TestAccOvirtVnicProfile_basic(t *testing.T) {
 		IDRefreshName: "ovirt_vnic_profile.profile",
 		Steps: []resource.TestStep{
 			{
-				Config: testAccVnicProfileBasic,
+				Config: fmt.Sprintf(`
+resource "ovirt_vnic_profile" "profile" {
+name        	 = "testAccOvirtVnicProfileBasic"
+network_id  	 = "%s"
+migratable  	 = false
+port_mirroring = false
+}
+`, networkID),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckOvirtVnicProfileExists("ovirt_vnic_profile.profile", &profile),
 					resource.TestCheckResourceAttr("ovirt_vnic_profile.profile", "name", "testAccOvirtVnicProfileBasic"),
@@ -33,7 +59,14 @@ func TestAccOvirtVnicProfile_basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccVnicProfileBasicUpdate,
+				Config: fmt.Sprintf(`
+resource "ovirt_vnic_profile" "profile" {
+  name        	 = "testAccOvirtVnicProfileBasicUpdate"
+  network_id  	 = "%s"
+  migratable  	 = true
+  port_mirroring = true
+}
+`, networkID),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckOvirtVnicProfileExists("ovirt_vnic_profile.profile", &profile),
 					resource.TestCheckResourceAttr("ovirt_vnic_profile.profile", "name", "testAccOvirtVnicProfileBasicUpdate"),
@@ -46,7 +79,7 @@ func TestAccOvirtVnicProfile_basic(t *testing.T) {
 }
 
 func testAccCheckVnicProfileDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*ovirtsdk4.Connection)
+	conn := testAccProvider.Meta().(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "ovirt_vnic_profile" {
 			continue
@@ -77,7 +110,7 @@ func testAccCheckOvirtVnicProfileExists(n string, v *ovirtsdk4.VnicProfile) reso
 		if rs.Primary.ID == "" {
 			return fmt.Errorf("No VnicProfile ID is set")
 		}
-		conn := testAccProvider.Meta().(*ovirtsdk4.Connection)
+		conn := testAccProvider.Meta().(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 		getResp, err := conn.SystemService().VnicProfilesService().
 			ProfileService(rs.Primary.ID).
 			Get().
@@ -93,37 +126,3 @@ func testAccCheckOvirtVnicProfileExists(n string, v *ovirtsdk4.VnicProfile) reso
 		return fmt.Errorf("VnicProfile %s not exist", rs.Primary.ID)
 	}
 }
-
-const testAccVnicProfileBasic = `
-data "ovirt_networks" "ovirtmgmt-test" {
-  search {
-    criteria       = "datacenter = Default and name = ovirtmgmt-test"
-    max            = 1
-    case_sensitive = false
-  }
-}
-
-resource "ovirt_vnic_profile" "profile" {
-  name        	 = "testAccOvirtVnicProfileBasic"
-  network_id  	 = "${data.ovirt_networks.ovirtmgmt-test.networks.0.id}"
-  migratable  	 = false
-  port_mirroring = false
-}
-`
-
-const testAccVnicProfileBasicUpdate = `
-data "ovirt_networks" "ovirtmgmt-test" {
-  search {
-    criteria       = "datacenter = Default and name = ovirtmgmt-test"
-    max            = 1
-    case_sensitive = false
-  }
-}
-
-resource "ovirt_vnic_profile" "profile" {
-  name        	 = "testAccOvirtVnicProfileBasicUpdate"
-  network_id  	 = "${data.ovirt_networks.ovirtmgmt-test.networks.0.id}"
-  migratable  	 = true
-  port_mirroring = true
-}
-`

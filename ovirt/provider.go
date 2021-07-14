@@ -13,16 +13,16 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 type providerContext struct {
-	semaphores *semaphoreProvider
+	semaphores SemaphoreProvider
 }
 
 func ProviderContext() func() terraform.ResourceProvider {
 	c := &providerContext{
-		semaphores: newSemaphoreProvider(),
+		semaphores: NewSemaphoreProvider(),
 	}
 	return c.Provider
 }
@@ -129,31 +129,35 @@ func ConfigureProvider(d *schema.ResourceData) (interface{}, error) {
 		return nil, fmt.Errorf("either insecure must be set or one of cafile and ca_bundle must be set")
 	}
 
-	connBuilder := ovirtsdk4.NewConnectionBuilder().
-		URL(d.Get("url").(string)).
-		Username(d.Get("username").(string)).
-		Password(d.Get("password").(string)).
-		CAFile(caFile).
-		CACert(caCert).
-		Insecure(insecure)
-
-	// Set headers if needed
+	headers := map[string]string{}
 	if v, ok := d.GetOk("headers"); ok {
-		headers := map[string]string{}
 		for k, v := range v.(map[string]interface{}) {
 			headers[k] = v.(string)
 		}
-		connBuilder.Headers(headers)
 	}
-
-	return connBuilder.Build()
+	logger := ovirtclient.NewGoLogLogger()
+	return ovirtclient.New(
+		d.Get("url").(string),
+		d.Get("username").(string),
+		d.Get("password").(string),
+		caFile,
+		caCert,
+		insecure,
+		headers,
+		logger,
+	)
 }
 
-func newSemaphoreProvider() *semaphoreProvider {
+func NewSemaphoreProvider() SemaphoreProvider {
 	return &semaphoreProvider{
 		lock:       &sync.Mutex{},
 		semaphores: map[string]chan struct{}{},
 	}
+}
+
+type SemaphoreProvider interface {
+	Lock(semName string, capacity uint)
+	Unlock(semName string)
 }
 
 type semaphoreProvider struct {

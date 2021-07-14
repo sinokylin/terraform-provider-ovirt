@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	ovirtsdk4 "github.com/ovirt/go-ovirt"
+	ovirtclient "github.com/ovirt/go-ovirt-client"
 )
 
 //// BlankTemplateID indicates the ID of default blank template in oVirt
@@ -270,7 +271,7 @@ func resourceOvirtTemplate() *schema.Resource {
 }
 
 func resourceOvirtTemplateCreate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	//// template with disks attached is conflicted with block_device
 	//templateID, templateIDOK := d.GetOk("template_id")
@@ -449,7 +450,7 @@ func resourceOvirtTemplateCreate(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceOvirtTemplateUpdate(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 	templateService := conn.SystemService().TemplatesService().TemplateService(d.Id())
 	paramTemplate := ovirtsdk4.NewTemplateBuilder()
 	attributeUpdated := false
@@ -480,7 +481,7 @@ func resourceOvirtTemplateUpdate(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceOvirtTemplateRead(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	response, err := conn.SystemService().TemplatesService().
 		TemplateService(d.Id()).Get().Send()
@@ -517,7 +518,7 @@ func resourceOvirtTemplateRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceOvirtTemplateDelete(d *schema.ResourceData, meta interface{}) error {
-	conn := meta.(*ovirtsdk4.Connection)
+	conn := meta.(ovirtclient.ClientWithLegacySupport).GetSDKClient()
 
 	templateService := conn.SystemService().TemplatesService().TemplateService(d.Id())
 
